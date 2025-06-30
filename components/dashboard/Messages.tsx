@@ -150,6 +150,15 @@ export default function Messages({ user }: MessagesProps) {
           ...conv,
           subject: conv.subject === null ? undefined : conv.subject,
           deleted_at: conv.deleted_at === null ? undefined : conv.deleted_at,
+          messages: (conv.messages || []).map((msg) => ({
+            ...msg,
+            conversation_id: msg.conversation_id ?? '', // or undefined, or throw if missing
+            read_by: msg.read_by ?? [],
+            created_at: msg.created_at ?? '',
+            updated_at: msg.updated_at ?? '',
+            deleted_at: msg.deleted_at === null ? undefined : msg.deleted_at,
+            // add other fields as needed
+          })),
         }))
       );      
       // Auto-select first conversation if none selected
