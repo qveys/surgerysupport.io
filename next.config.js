@@ -22,6 +22,11 @@ const nextConfig = {
       };
     }
 
+    // Suppress the specific Supabase realtime warnings
+    config.module = config.module || {};
+    config.module.exprContextCritical = false;
+    config.module.unknownContextCritical = false;
+
     return config;
   },
 };
