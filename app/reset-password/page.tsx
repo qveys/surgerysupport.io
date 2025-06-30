@@ -42,4 +42,5 @@ export default function ResetPasswordPage({ searchParams }: { searchParams: { [k
       )}
     </div>
   );
-}
+} rm -rf .next
+   npx next build
