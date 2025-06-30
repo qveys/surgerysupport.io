@@ -1,6 +1,6 @@
 'use client';
 
-import PasswordResetModal from '@/components/auth/PasswordResetModal';
+// import PasswordResetModal from '@/components/auth/PasswordResetModal';
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
@@ -18,12 +18,14 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary/10">
+      {/* 
       <PasswordResetModal 
         isOpen={isModalOpen} 
         onClose={handleCloseModal} 
         token={token}
         type={type}
       />
+      */}
       {/* Fallback content if modal is not open */}
       {!isModalOpen && (
         <div className="flex items-center justify-center min-h-screen">
