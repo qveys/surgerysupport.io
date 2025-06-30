@@ -115,11 +115,11 @@ export default function Messages({ user }: MessagesProps) {
         if (payload.eventType === 'INSERT') {
           loadMessages(selectedConversation);
         } else if (payload.eventType === 'UPDATE') {
-          setMessages(prev => prev.map(msg => 
+          setMessages((prev: ExtendedMessage[]) => prev.map((msg: ExtendedMessage) => 
             msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
           ));
         } else if (payload.eventType === 'DELETE') {
-          setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+          setMessages((prev: ExtendedMessage[]) => prev.filter((msg: ExtendedMessage) => msg.id !== payload.old.id));
         }
       }
     );
@@ -146,21 +146,21 @@ export default function Messages({ user }: MessagesProps) {
       setLoading(true);
       const data = await DatabaseService.getConversations(authUser?.id);
       setConversations(
-        data.map((conv) => ({
+        data.map((conv: any) => ({
           ...conv,
           subject: conv.subject === null ? undefined : conv.subject,
           deleted_at: conv.deleted_at === null ? undefined : conv.deleted_at,
-          messages: (conv.messages || []).map((msg) => ({
+          messages: (conv.messages || []).map((msg: any) => ({
             ...msg,
-            conversation_id: msg.conversation_id ?? '', // or undefined, or throw if missing
+            conversation_id: conv.id,
             read_by: msg.read_by ?? [],
             created_at: msg.created_at ?? '',
             updated_at: msg.updated_at ?? '',
             deleted_at: msg.deleted_at === null ? undefined : msg.deleted_at,
-            // add other fields as needed
           })),
         }))
-      );      
+      );
+      
       // Auto-select first conversation if none selected
       if (data.length > 0 && !selectedConversation) {
         setSelectedConversation(data[0].id);
@@ -380,13 +380,13 @@ export default function Messages({ user }: MessagesProps) {
                   </Button>
                 </div>
               ) : (
-                filteredConversations.map((conversation) => (
+                filteredConversations.map((conv: any) => (
                   <button
-                    key={conversation.id}
-                    onClick={() => setSelectedConversation(conversation.id)}
+                    key={conv.id}
+                    onClick={() => setSelectedConversation(conv.id)}
                     className={`
                       w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors
-                      ${selectedConversation === conversation.id ? 'bg-primary/5 border-l-4 border-l-primary' : ''}
+                      ${selectedConversation === conv.id ? 'bg-primary/5 border-l-4 border-l-primary' : ''}
                     `}
                   >
                     <div className="flex items-start space-x-3">
@@ -398,18 +398,18 @@ export default function Messages({ user }: MessagesProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h3 className="font-medium text-gray-900 truncate">
-                            {conversation.subject || 'Healthcare Team'}
+                            {conv.subject || 'Healthcare Team'}
                           </h3>
                           <div className="flex items-center space-x-1">
-                            {conversation.hasUnreadMessages && (
+                            {conv.hasUnreadMessages && (
                               <div className="w-2 h-2 bg-primary rounded-full"></div>
                             )}
                           </div>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">Healthcare Team</p>
-                        <p className="text-sm text-gray-500 truncate">{conversation.latestMessage}</p>
+                        <p className="text-sm text-gray-500 truncate">{conv.latestMessage}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {formatTimestamp(conversation.latestMessageTime)}
+                          {formatTimestamp(conv.latestMessageTime)}
                         </p>
                       </div>
                     </div>
