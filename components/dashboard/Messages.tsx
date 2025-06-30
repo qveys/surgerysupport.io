@@ -149,6 +149,7 @@ export default function Messages({ user }: MessagesProps) {
         data.map((conv) => ({
           ...conv,
           subject: conv.subject === null ? undefined : conv.subject,
+          deleted_at: conv.deleted_at === null ? undefined : conv.deleted_at,
         }))
       );      
       // Auto-select first conversation if none selected
