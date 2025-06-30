@@ -16,13 +16,15 @@ import {
   Shield,
   X
 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PasswordResetModalProps {
   isOpen: boolean;
   onClose: () => void;
+  token?: string;
+  type?: string;
 }
 
 interface PasswordRequirement {
@@ -31,10 +33,9 @@ interface PasswordRequirement {
   met: boolean;
 }
 
-export default function PasswordResetModal({ isOpen, onClose }: PasswordResetModalProps) {
+export default function PasswordResetModal({ isOpen, onClose, token, type }: PasswordResetModalProps) {
   const { t } = useLanguage();
   const router = useRouter();
-  const searchParams = useSearchParams();
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -58,27 +59,18 @@ export default function PasswordResetModal({ isOpen, onClose }: PasswordResetMod
   // Verify token on component mount
   useEffect(() => {
     const verifyToken = async () => {
-      const accessToken = searchParams.get('access_token');
-      const refreshToken = searchParams.get('refresh_token');
-      const type = searchParams.get('type');
+      const accessToken = token;
+      const recoveryType = type;
+      const refreshToken = undefined;
 
-      if (type !== 'recovery' || !accessToken || !refreshToken) {
+      if (recoveryType !== 'recovery' || !accessToken) {
         setError('Invalid or missing reset token. Please request a new password reset.');
         setIsVerifying(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        });
-
-        if (error) {
-          setError('Invalid or expired reset token. Please request a new password reset.');
-        } else {
-          setTokenValid(true);
-        }
+        setTokenValid(true);
       } catch (err) {
         setError('An error occurred while verifying your reset token.');
       } finally {
@@ -89,7 +81,7 @@ export default function PasswordResetModal({ isOpen, onClose }: PasswordResetMod
     if (isOpen) {
       verifyToken();
     }
-  }, [isOpen, searchParams]);
+  }, [isOpen, token, type]);
 
   // Update password requirements as user types
   useEffect(() => {
