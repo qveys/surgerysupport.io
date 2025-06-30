@@ -1,9 +1,13 @@
+'use client';
+
 import PasswordResetModal from '@/components/auth/PasswordResetModal';
 import { Loader2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
-export default function ResetPasswordPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
-  const token = typeof searchParams.token === 'string' ? searchParams.token : undefined;
-  const type = typeof searchParams.type === 'string' ? searchParams.type : undefined;
+export default function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token') || undefined;
+  const type = searchParams.get('type') || undefined;
 
   // Only show modal if type is 'recovery' and token exists
   const isModalOpen = type === 'recovery' && !!token;
@@ -42,5 +46,4 @@ export default function ResetPasswordPage({ searchParams }: { searchParams: { [k
       )}
     </div>
   );
-} rm -rf .next
-   npx next build
+}
