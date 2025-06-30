@@ -145,8 +145,12 @@ export default function Messages({ user }: MessagesProps) {
     try {
       setLoading(true);
       const data = await DatabaseService.getConversations(authUser?.id);
-      setConversations(data);
-      
+      setConversations(
+        data.map((conv) => ({
+          ...conv,
+          subject: conv.subject === null ? undefined : conv.subject,
+        }))
+      );      
       // Auto-select first conversation if none selected
       if (data.length > 0 && !selectedConversation) {
         setSelectedConversation(data[0].id);
