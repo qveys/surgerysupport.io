@@ -176,7 +176,14 @@ export default function Messages({ user }: MessagesProps) {
   const loadMessages = async (conversationId: string) => {
     try {
       const data = await DatabaseService.getMessages(conversationId);
-      setMessages(data);
+      setMessages(
+        data.map((msg: any) => ({
+          ...msg,
+          read_by: Array.isArray(msg.read_by) ? msg.read_by : [],
+          deleted_at: msg.deleted_at === null ? undefined : msg.deleted_at,
+          attachments: msg.attachments === null ? undefined : msg.attachments,
+        }))
+      );
     } catch (error) {
       console.error('Error loading messages:', error);
       toast.error('Failed to load messages');
