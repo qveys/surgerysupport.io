@@ -77,22 +77,25 @@ export default function Home() {
 
   // Show loading while profile is being created (but user exists and email is confirmed)
   if (user && user.email_confirmed_at && !user.profile) {
-    console.log('User exists with confirmed email but no profile yet, showing loading...');
+    console.log('User exists with confirmed email but no profile yet, attempting to create...');
+    
+    // The profile creation is now handled automatically in getUserProfile
+    // This loading state should be brief as the profile gets created automatically
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Setting up your profile...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-md">
-            <p className="text-xs text-blue-700">
-              If this takes longer than expected, try refreshing the page or signing out and back in.
+          <p className="text-sm text-gray-500 mt-2">Creating your account profile</p>
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-md">
+            <p className="text-xs text-blue-700 mb-3">
+              We're automatically creating your profile. This should only take a moment.
             </p>
             <button 
               onClick={() => window.location.reload()}
-              className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
             >
-              Refresh Page
+              Refresh if stuck
             </button>
           </div>
         </div>

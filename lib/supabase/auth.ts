@@ -1,5 +1,3 @@
-'use client';
-
 import { supabase } from './client';
 import type { Database } from './types';
 
@@ -162,12 +160,69 @@ export class AuthService {
     }
   }
 
-  // Get user profile with better error handling
+  // Create a user profile manually
+  static async createUserProfile(userId: string, email: string, fullName?: string, roleName: string = 'Patient'): Promise<UserProfile | null> {
+    try {
+      console.log('🔄 Creating user profile manually for:', userId);
+
+      // First, get the role ID
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', roleName)
+        .single();
+
+      if (roleError || !roleData) {
+        console.error('❌ Error fetching role or role not found:', roleError);
+        // Try to get Patient role as fallback
+        const { data: patientRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'Patient')
+          .single();
+        
+        if (!patientRole) {
+          throw new Error('No roles found in database');
+        }
+        roleData.id = patientRole.id;
+      }
+
+      // Generate username from email
+      const username = email.toLowerCase().replace('@', '_at_').replace(/\./g, '_');
+
+      // Create the profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          email: email,
+          role_id: roleData.id,
+          full_name: fullName || email,
+          username: username,
+          preferred_language: 'en'
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('❌ Error creating user profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('✅ User profile created successfully:', profileData.id);
+      return profileData;
+    } catch (error) {
+      console.error('❌ Error in createUserProfile:', error);
+      throw error;
+    }
+  }
+
+  // Get user profile with automatic creation if missing
   static async getUserProfile(userId: string): Promise<{ profile: UserProfile | null; role: Role | null }> {
     try {
       console.log('🔄 Getting profile for user ID:', userId);
 
-      // First, check if the user_profiles table exists and is accessible
+      // First, try to get the existing profile
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -176,65 +231,44 @@ export class AuthService {
 
       if (profileError) {
         console.error('❌ Error fetching user profile:', profileError);
-        
-        // Check if it's a table access error
-        if (profileError.code === 'PGRST116' || profileError.message.includes('JSON object requested')) {
-          console.error('🚨 Database access error - user profile may not exist or RLS policy issue');
-          
-          // Try to create a profile for this user if it doesn't exist
-          try {
-            console.log('🔄 Attempting to create missing user profile...');
-            const { data: authUser } = await supabase.auth.getUser();
-            
-            if (authUser.user && authUser.user.id === userId) {
-              // Get Patient role ID
-              const { data: patientRole } = await supabase
-                .from('roles')
-                .select('id')
-                .eq('name', 'Patient')
-                .single();
-
-              if (patientRole) {
-                const { data: newProfile, error: createError } = await supabase
-                  .from('user_profiles')
-                  .insert({
-                    id: userId,
-                    email: authUser.user.email || '',
-                    role_id: patientRole.id,
-                    full_name: authUser.user.user_metadata?.full_name || authUser.user.email || '',
-                    username: (authUser.user.email || '').replace('@', '_at_').replace('.', '_'),
-                    preferred_language: 'en'
-                  })
-                  .select()
-                  .single();
-
-                if (!createError && newProfile) {
-                  console.log('✅ Created missing user profile:', newProfile.id);
-                  
-                  // Get the role for the new profile
-                  const { data: roleData } = await supabase
-                    .from('roles')
-                    .select('*')
-                    .eq('id', newProfile.role_id)
-                    .single();
-
-                  return {
-                    profile: newProfile,
-                    role: roleData || null
-                  };
-                }
-              }
-            }
-          } catch (createError) {
-            console.error('❌ Failed to create missing profile:', createError);
-          }
-        }
-        
         return { profile: null, role: null };
       }
 
+      // If profile doesn't exist, try to create it
       if (!profileData) {
         console.log('⚠️ Profile not found for user:', userId);
+        console.log('🔄 Attempting to create missing profile...');
+        
+        try {
+          // Get the current auth user to get email and metadata
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          
+          if (authUser && authUser.id === userId) {
+            const createdProfile = await this.createUserProfile(
+              userId,
+              authUser.email || '',
+              authUser.user_metadata?.full_name,
+              authUser.user_metadata?.role_name || 'Patient'
+            );
+
+            if (createdProfile) {
+              // Get the role for the newly created profile
+              const { data: roleData } = await supabase
+                .from('roles')
+                .select('*')
+                .eq('id', createdProfile.role_id)
+                .single();
+
+              return {
+                profile: createdProfile,
+                role: roleData || null
+              };
+            }
+          }
+        } catch (createError) {
+          console.error('❌ Failed to create missing profile:', createError);
+        }
+        
         return { profile: null, role: null };
       }
 
@@ -245,6 +279,7 @@ export class AuthService {
         role_id: profileData.role_id
       });
 
+      // Get the role
       let userRole: Role | null = null;
       if (profileData.role_id) {
         console.log('🔄 Fetching role for role_id:', profileData.role_id);
@@ -286,7 +321,7 @@ export class AuthService {
 
       console.log('🔄 Auth user found, getting profile...');
       
-      // Then get their profile
+      // Then get their profile (with automatic creation if missing)
       const { profile, role } = await this.getUserProfile(authUser.id);
 
       const completeUser: AuthUser = {
@@ -388,7 +423,7 @@ export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
           created_at: sessionUser.created_at
         });
         
-        // Get the user's profile and role using the session user ID
+        // Get the user's profile and role using the session user ID (with automatic creation)
         console.log('🔄 Fetching profile for session user:', sessionUser.id);
         const { profile, role } = await AuthService.getUserProfile(sessionUser.id);
         
