@@ -60,14 +60,14 @@ export default function Home() {
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Advice :</strong> Also check your spam folder if you don't see the email.
+                <strong>Tip:</strong> Also check your spam folder if you don't see the email.
               </p>
             </div>
             <button 
               onClick={() => window.location.reload()}
               className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
             >
-              J'ai confirmé mon email
+              I have confirmed my email
             </button>
           </div>
         </div>
