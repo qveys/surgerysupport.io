@@ -357,7 +357,7 @@ export class AuthService {
 
       const completeUser: AuthUser = {
         id: authUser.id,
-        email: authUser.email!,
+        email: authUser.email ?? '', // Use empty string as fallback if email is null
         email_confirmed_at: authUser.email_confirmed_at,
         profile,
         role
@@ -461,7 +461,7 @@ export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
         // Construct the complete AuthUser object
         const authUser: AuthUser = {
           id: sessionUser.id,
-          email: sessionUser.email!,
+          email: sessionUser.email ?? '', // Use empty string as fallback if email is null
           email_confirmed_at: sessionUser.email_confirmed_at,
           profile,
           role
