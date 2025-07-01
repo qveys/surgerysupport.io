@@ -1,3 +1,5 @@
+'use client';
+
 import { supabase } from './client';
 import type { Database } from './types';
 
@@ -42,14 +44,14 @@ export class AuthService {
         // Handle misleading "Invalid login credentials" error during signup
         if (error.message === 'Invalid login credentials') {
           // This often means the user already exists, so treat it as such
-          const userExistsError = new Error('Email déjà enregistré ou informations incorrectes. Essayez de vous connecter ou de réinitialiser votre mot de passe.');
+          const userExistsError = new Error('Email already registered or incorrect information. Try signing in or resetting your password.');
           userExistsError.name = 'UserAlreadyExistsError';
           throw userExistsError;
         }
         
         // Handle other signup-related errors that might indicate existing user
         if (error.message.includes('already') || error.message.includes('exists')) {
-          const userExistsError = new Error('Ce compte existe déjà');
+          const userExistsError = new Error('This account already exists');
           userExistsError.name = 'UserAlreadyExistsError';
           throw userExistsError;
         }
@@ -60,7 +62,7 @@ export class AuthService {
       // CRITICAL CHECK: If no error but identities array is empty, user already exists
       if (data.user && data.user.identities && data.user.identities.length === 0) {
         console.log('⚠️ User signup returned empty identities array - email already exists');
-        const userExistsError = new Error('Ce compte existe déjà');
+        const userExistsError = new Error('This account already exists');
         userExistsError.name = 'UserAlreadyExistsError';
         throw userExistsError;
       }
@@ -93,7 +95,7 @@ export class AuthService {
       if (error) {
         console.error('❌ Sign in error:', error);
         if (error.message === 'Invalid login credentials') {
-          throw new Error('Email ou mot de passe incorrect');
+          throw new Error('Email or password incorrect');
         }
         throw error;
       }
@@ -160,62 +162,115 @@ export class AuthService {
     }
   }
 
-  // Get user profile with simple direct query
-// Get user profile with simple direct query
-static async getUserProfile(userId: string): Promise<{ profile: UserProfile | null; role: Role | null }> {
-  try {
-    console.log('🔄 Getting profile for user ID:', userId);
+  // Get user profile with better error handling
+  static async getUserProfile(userId: string): Promise<{ profile: UserProfile | null; role: Role | null }> {
+    try {
+      console.log('🔄 Getting profile for user ID:', userId);
 
-    // Remplacé .single() par .maybeSingle() pour éviter erreur 406
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('❌ Error fetching user profile:', profileError);
-      return { profile: null, role: null };
-    }
-
-    if (!profileData) {
-      console.log('⚠️ Profile not found for user:', userId);
-      return { profile: null, role: null };
-    }
-
-    console.log('✅ Profile found:', {
-      id: profileData.id,
-      email: profileData.email,
-      full_name: profileData.full_name,
-      role_id: profileData.role_id
-    });
-
-    let userRole: Role | null = null;
-    if (profileData.role_id) {
-      console.log('🔄 Fetching role for role_id:', profileData.role_id);
-      const { data: roleData, error: roleError } = await supabase
-        .from('roles')
+      // First, check if the user_profiles table exists and is accessible
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
         .select('*')
-        .eq('id', profileData.role_id)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (roleError) {
-        console.error('❌ Error fetching role:', roleError);
-      } else {
-        userRole = roleData;
-        console.log('✅ Role found:', userRole.name);
+      if (profileError) {
+        console.error('❌ Error fetching user profile:', profileError);
+        
+        // Check if it's a table access error
+        if (profileError.code === 'PGRST116' || profileError.message.includes('JSON object requested')) {
+          console.error('🚨 Database access error - user profile may not exist or RLS policy issue');
+          
+          // Try to create a profile for this user if it doesn't exist
+          try {
+            console.log('🔄 Attempting to create missing user profile...');
+            const { data: authUser } = await supabase.auth.getUser();
+            
+            if (authUser.user && authUser.user.id === userId) {
+              // Get Patient role ID
+              const { data: patientRole } = await supabase
+                .from('roles')
+                .select('id')
+                .eq('name', 'Patient')
+                .single();
+
+              if (patientRole) {
+                const { data: newProfile, error: createError } = await supabase
+                  .from('user_profiles')
+                  .insert({
+                    id: userId,
+                    email: authUser.user.email || '',
+                    role_id: patientRole.id,
+                    full_name: authUser.user.user_metadata?.full_name || authUser.user.email || '',
+                    username: (authUser.user.email || '').replace('@', '_at_').replace('.', '_'),
+                    preferred_language: 'en'
+                  })
+                  .select()
+                  .single();
+
+                if (!createError && newProfile) {
+                  console.log('✅ Created missing user profile:', newProfile.id);
+                  
+                  // Get the role for the new profile
+                  const { data: roleData } = await supabase
+                    .from('roles')
+                    .select('*')
+                    .eq('id', newProfile.role_id)
+                    .single();
+
+                  return {
+                    profile: newProfile,
+                    role: roleData || null
+                  };
+                }
+              }
+            }
+          } catch (createError) {
+            console.error('❌ Failed to create missing profile:', createError);
+          }
+        }
+        
+        return { profile: null, role: null };
       }
-    }
 
-    return {
-      profile: profileData,
-      role: userRole
-    };
-  } catch (error) {
-    console.error('❌ Error in getUserProfile:', error);
-    return { profile: null, role: null };
+      if (!profileData) {
+        console.log('⚠️ Profile not found for user:', userId);
+        return { profile: null, role: null };
+      }
+
+      console.log('✅ Profile found:', {
+        id: profileData.id,
+        email: profileData.email,
+        full_name: profileData.full_name,
+        role_id: profileData.role_id
+      });
+
+      let userRole: Role | null = null;
+      if (profileData.role_id) {
+        console.log('🔄 Fetching role for role_id:', profileData.role_id);
+        const { data: roleData, error: roleError } = await supabase
+          .from('roles')
+          .select('*')
+          .eq('id', profileData.role_id)
+          .single();
+
+        if (roleError) {
+          console.error('❌ Error fetching role:', roleError);
+        } else {
+          userRole = roleData;
+          console.log('✅ Role found:', userRole.name);
+        }
+      }
+
+      return {
+        profile: profileData,
+        role: userRole
+      };
+    } catch (error) {
+      console.error('❌ Error in getUserProfile:', error);
+      return { profile: null, role: null };
+    }
   }
-}
 
   // Get complete user (auth + profile)
   static async getCurrentUser(): Promise<AuthUser | null> {

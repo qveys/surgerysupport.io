@@ -27,7 +27,7 @@ export default function Home() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
-          <p className="text-xs text-gray-500 mt-2">Checking the authentication...</p>
+          <p className="text-xs text-gray-500 mt-2">Checking authentication...</p>
         </div>
       </div>
     );
@@ -82,12 +82,18 @@ export default function Home() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Configuring your profile...</p>
+          <p className="text-gray-600">Setting up your profile...</p>
           <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
           <div className="mt-4 p-4 bg-blue-50 rounded-lg max-w-md">
             <p className="text-xs text-blue-700">
-              If it takes longer than expected, try refreshing the page or disconnecting and reconnecting.
+              If this takes longer than expected, try refreshing the page or signing out and back in.
             </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+            >
+              Refresh Page
+            </button>
           </div>
         </div>
       </div>
