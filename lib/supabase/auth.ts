@@ -172,19 +172,50 @@ export class AuthService {
         .eq('name', roleName)
         .single();
 
-      if (roleError || !roleData) {
-        console.error('❌ Error fetching role or role not found:', roleError);
+      if (roleError) {
+        console.error('❌ Error fetching role:', roleError);
         // Try to get Patient role as fallback
+        const { data: patientRole, error: patientRoleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'Patient')
+          .single();
+        
+        if (patientRoleError || !patientRole) {
+          throw new Error('No roles found in database');
+        }
+        
+        // Use the patient role ID
+        return this.createProfileWithRoleId(userId, email, fullName, patientRole.id);
+      }
+
+      // Use the found role ID
+      return this.createProfileWithRoleId(userId, email, fullName, roleData.id);
+    } catch (error) {
+      console.error('❌ Error in createUserProfile:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to create profile with role ID
+  private static async createProfileWithRoleId(
+    userId: string, 
+    email: string, 
+    fullName?: string, 
+    roleId?: string
+  ): Promise<UserProfile | null> {
+    try {
+      // If no role ID provided, try to get the Patient role ID
+      if (!roleId) {
         const { data: patientRole } = await supabase
           .from('roles')
           .select('id')
           .eq('name', 'Patient')
           .single();
         
-        if (!patientRole) {
-          throw new Error('No roles found in database');
+        if (patientRole) {
+          roleId = patientRole.id;
         }
-        roleData.id = patientRole.id;
       }
 
       // Generate username from email
@@ -196,7 +227,7 @@ export class AuthService {
         .insert({
           id: userId,
           email: email,
-          role_id: roleData.id,
+          role_id: roleId,
           full_name: fullName || email,
           username: username,
           preferred_language: 'en'
@@ -212,7 +243,7 @@ export class AuthService {
       console.log('✅ User profile created successfully:', profileData.id);
       return profileData;
     } catch (error) {
-      console.error('❌ Error in createUserProfile:', error);
+      console.error('❌ Error in createProfileWithRoleId:', error);
       throw error;
     }
   }
@@ -291,7 +322,7 @@ export class AuthService {
 
         if (roleError) {
           console.error('❌ Error fetching role:', roleError);
-        } else {
+        } else if (roleData) {
           userRole = roleData;
           console.log('✅ Role found:', userRole.name);
         }
