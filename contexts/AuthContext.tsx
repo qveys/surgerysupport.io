@@ -125,8 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Show success toast when user successfully logs in
         if (user && user.profile) {
-          toast.success('Connexion réussie!', {
-            description: `Bienvenue ${user.profile.full_name || user.email}`
+          toast.success('Login successful!', {
+            description: `Welcome ${user.profile.full_name || user.email}`
           });
         }
       }
@@ -147,8 +147,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       setLoading(false);
       console.error('❌ Sign in error in AuthContext:', error);
-      toast.error('Erreur de connexion', {
-        description: error instanceof Error ? error.message : 'Une erreur est survenue'
+      toast.error('Login error', {
+        description: error instanceof Error ? error.message : 'An error occurred'
       });
       throw error;
     }
@@ -171,15 +171,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (newUser && !newUser.email_confirmed_at) {
         console.log('📧 Email confirmation required for user:', newUser.id);
         // Email confirmation required
-        toast.success('Compte créé avec succès!', {
-          description: 'Veuillez vérifier votre boîte mail et cliquer sur le lien de confirmation pour activer votre compte.',
+        toast.success('Account created successfully!', {
+          description: 'Please check your email and click the confirmation link to activate your account.',
           duration: 8000
         });
         
         // Additional info toast
         setTimeout(() => {
-          toast.info('Vérification requise', {
-            description: `Un email de confirmation a été envoyé à ${email}. Cliquez sur le lien pour finaliser votre inscription.`,
+          toast.info('Verification required', {
+            description: `A confirmation email has been sent to ${email}. Click the link to complete your registration.`,
             duration: 10000
           });
         }, 1000);
@@ -191,8 +191,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If session exists immediately (email confirmation disabled)
       if (session) {
         console.log('✅ Session exists immediately after signup');
-        toast.success('Compte créé avec succès!', {
-          description: 'Votre profil est en cours de configuration...'
+        toast.success('Account created successfully!', {
+          description: 'Your profile is being configured...'
         });
         // Let onAuthStateChange handle the user state update
       } else {
@@ -206,21 +206,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Specific handling for "User already registered" error
       if (err.name === 'UserAlreadyExistsError') {
-        toast.error('Oups!', {
-          description: `Cet email est déjà utilisé. Veuillez vous connecter ou vérifier votre boîte mail pour le lien de confirmation.`,
+        toast.error('Oops!', {
+          description: `This email is already in use. Please sign in or check your email for the confirmation link.`,
           duration: 10000
         });
         
         // Additional helpful toast
         setTimeout(() => {
-          toast.info('Que faire maintenant?', {
-            description: 'Essayez de vous connecter avec vos identifiants existants, ou utilisez "Mot de passe oublié" si nécessaire.',
+          toast.info('What to do now?', {
+            description: 'Try signing in with your existing credentials, or use "Forgot password" if needed.',
             duration: 8000
           });
         }, 1500);
       } else {
-        toast.error('Erreur lors de la création du compte', {
-          description: err instanceof Error ? err.message : 'Une erreur est survenue'
+        toast.error('Error creating account', {
+          description: err instanceof Error ? err.message : 'An error occurred'
         });
       }
       throw err;
@@ -233,12 +233,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔄 Starting sign out from AuthContext...');
       await AuthService.signOut();
       setUser(null);
-      toast.success('Déconnexion réussie');
+      toast.success('Signed out successfully');
     } catch (error) {
       console.error('❌ SignOut error in AuthContext:', error);
       // Even if signOut fails, clear local state
       setUser(null);
-      toast.error('Erreur lors de la déconnexion');
+      toast.error('Error signing out');
     } finally {
       setLoading(false);
     }
@@ -254,10 +254,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...user,
         profile: updatedProfile
       });
-      toast.success('Profil mis à jour');
+      toast.success('Profile updated');
     } catch (error) {
       console.error('❌ Error updating profile in AuthContext:', error);
-      toast.error('Erreur lors de la mise à jour du profil');
+      toast.error('Error updating profile');
       throw error;
     }
   };

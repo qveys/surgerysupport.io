@@ -42,14 +42,14 @@ export class AuthService {
         // Handle misleading "Invalid login credentials" error during signup
         if (error.message === 'Invalid login credentials') {
           // This often means the user already exists, so treat it as such
-          const userExistsError = new Error('Email déjà enregistré ou informations incorrectes. Essayez de vous connecter ou de réinitialiser votre mot de passe.');
+          const userExistsError = new Error('Email already registered or incorrect information. Try signing in or resetting your password.');
           userExistsError.name = 'UserAlreadyExistsError';
           throw userExistsError;
         }
         
         // Handle other signup-related errors that might indicate existing user
         if (error.message.includes('already') || error.message.includes('exists')) {
-          const userExistsError = new Error('Ce compte existe déjà');
+          const userExistsError = new Error('This account already exists');
           userExistsError.name = 'UserAlreadyExistsError';
           throw userExistsError;
         }
@@ -60,7 +60,7 @@ export class AuthService {
       // CRITICAL CHECK: If no error but identities array is empty, user already exists
       if (data.user && data.user.identities && data.user.identities.length === 0) {
         console.log('⚠️ User signup returned empty identities array - email already exists');
-        const userExistsError = new Error('Ce compte existe déjà');
+        const userExistsError = new Error('This account already exists');
         userExistsError.name = 'UserAlreadyExistsError';
         throw userExistsError;
       }
@@ -93,7 +93,7 @@ export class AuthService {
       if (error) {
         console.error('❌ Sign in error:', error);
         if (error.message === 'Invalid login credentials') {
-          throw new Error('Email ou mot de passe incorrect');
+          throw new Error('Email or password incorrect');
         }
         throw error;
       }
@@ -160,62 +160,189 @@ export class AuthService {
     }
   }
 
-  // Get user profile with simple direct query
-// Get user profile with simple direct query
-static async getUserProfile(userId: string): Promise<{ profile: UserProfile | null; role: Role | null }> {
-  try {
-    console.log('🔄 Getting profile for user ID:', userId);
+  // Create a user profile manually
+  static async createUserProfile(userId: string, email: string, fullName?: string, roleName: string = 'Patient'): Promise<UserProfile | null> {
+    try {
+      console.log('🔄 Creating user profile manually for:', userId);
 
-    // Remplacé .single() par .maybeSingle() pour éviter erreur 406
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('❌ Error fetching user profile:', profileError);
-      return { profile: null, role: null };
-    }
-
-    if (!profileData) {
-      console.log('⚠️ Profile not found for user:', userId);
-      return { profile: null, role: null };
-    }
-
-    console.log('✅ Profile found:', {
-      id: profileData.id,
-      email: profileData.email,
-      full_name: profileData.full_name,
-      role_id: profileData.role_id
-    });
-
-    let userRole: Role | null = null;
-    if (profileData.role_id) {
-      console.log('🔄 Fetching role for role_id:', profileData.role_id);
+      // First, get the role ID
       const { data: roleData, error: roleError } = await supabase
         .from('roles')
-        .select('*')
-        .eq('id', profileData.role_id)
+        .select('id')
+        .eq('name', roleName)
         .single();
 
       if (roleError) {
         console.error('❌ Error fetching role:', roleError);
-      } else {
-        userRole = roleData;
-        console.log('✅ Role found:', userRole.name);
+        // Try to get Patient role as fallback
+        const { data: patientRole, error: patientRoleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'Patient')
+          .single();
+        
+        if (patientRoleError || !patientRole) {
+          throw new Error('No roles found in database');
+        }
+        
+        // Use the patient role ID
+        return this.createProfileWithRoleId(userId, email, fullName, patientRole.id);
       }
-    }
 
-    return {
-      profile: profileData,
-      role: userRole
-    };
-  } catch (error) {
-    console.error('❌ Error in getUserProfile:', error);
-    return { profile: null, role: null };
+      // Use the found role ID
+      return this.createProfileWithRoleId(userId, email, fullName, roleData.id);
+    } catch (error) {
+      console.error('❌ Error in createUserProfile:', error);
+      throw error;
+    }
   }
-}
+
+  // Helper method to create profile with role ID
+  private static async createProfileWithRoleId(
+    userId: string, 
+    email: string, 
+    fullName?: string, 
+    roleId?: string
+  ): Promise<UserProfile | null> {
+    try {
+      // If no role ID provided, try to get the Patient role ID
+      if (!roleId) {
+        const { data: patientRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'Patient')
+          .single();
+        
+        if (patientRole) {
+          roleId = patientRole.id;
+        }
+      }
+
+      // Generate username from email
+      const username = email.toLowerCase().replace('@', '_at_').replace(/\./g, '_');
+
+      // Create the profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          email: email,
+          role_id: roleId,
+          full_name: fullName || email,
+          username: username,
+          preferred_language: 'en'
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('❌ Error creating user profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('✅ User profile created successfully:', profileData.id);
+      return profileData;
+    } catch (error) {
+      console.error('❌ Error in createProfileWithRoleId:', error);
+      throw error;
+    }
+  }
+
+  // Get user profile with automatic creation if missing
+  static async getUserProfile(userId: string): Promise<{ profile: UserProfile | null; role: Role | null }> {
+    try {
+      console.log('🔄 Getting profile for user ID:', userId);
+
+      // First, try to get the existing profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('❌ Error fetching user profile:', profileError);
+        return { profile: null, role: null };
+      }
+
+      // If profile doesn't exist, try to create it
+      if (!profileData) {
+        console.log('⚠️ Profile not found for user:', userId);
+        console.log('🔄 Attempting to create missing profile...');
+        
+        try {
+          // Get the current auth user to get email and metadata
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          
+          if (authUser && authUser.id === userId) {
+            const createdProfile = await this.createUserProfile(
+              userId,
+              authUser.email || '',
+              authUser.user_metadata?.full_name,
+              authUser.user_metadata?.role_name || 'Patient'
+            );
+
+            if (createdProfile) {
+              // Get the role for the newly created profile, but only if role_id is not null
+              let roleData = null;
+              
+              if (createdProfile.role_id) {
+                const { data: fetchedRole } = await supabase
+                  .from('roles')
+                  .select('*')
+                  .eq('id', createdProfile.role_id)
+                  .single();
+                  
+                roleData = fetchedRole;
+              }
+
+              return {
+                profile: createdProfile,
+                role: roleData
+              };
+            }
+          }
+        } catch (createError) {
+          console.error('❌ Failed to create missing profile:', createError);
+        }
+        
+        return { profile: null, role: null };
+      }
+
+      console.log('✅ Profile found:', {
+        id: profileData.id,
+        email: profileData.email,
+        full_name: profileData.full_name,
+        role_id: profileData.role_id
+      });
+
+      // Get the role
+      let userRole: Role | null = null;
+      if (profileData.role_id) {
+        console.log('🔄 Fetching role for role_id:', profileData.role_id);
+        const { data: roleData, error: roleError } = await supabase
+          .from('roles')
+          .select('*')
+          .eq('id', profileData.role_id)
+          .single();
+
+        if (roleError) {
+          console.error('❌ Error fetching role:', roleError);
+        } else if (roleData) {
+          userRole = roleData;
+          console.log('✅ Role found:', userRole.name);
+        }
+      }
+
+      return {
+        profile: profileData,
+        role: userRole
+      };
+    } catch (error) {
+      console.error('❌ Error in getUserProfile:', error);
+      return { profile: null, role: null };
+    }
+  }
 
   // Get complete user (auth + profile)
   static async getCurrentUser(): Promise<AuthUser | null> {
@@ -231,12 +358,12 @@ static async getUserProfile(userId: string): Promise<{ profile: UserProfile | nu
 
       console.log('🔄 Auth user found, getting profile...');
       
-      // Then get their profile
+      // Then get their profile (with automatic creation if missing)
       const { profile, role } = await this.getUserProfile(authUser.id);
 
       const completeUser: AuthUser = {
         id: authUser.id,
-        email: authUser.email!,
+        email: authUser.email ?? '', // Use empty string as fallback if email is null
         email_confirmed_at: authUser.email_confirmed_at,
         profile,
         role
@@ -333,14 +460,14 @@ export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
           created_at: sessionUser.created_at
         });
         
-        // Get the user's profile and role using the session user ID
+        // Get the user's profile and role using the session user ID (with automatic creation)
         console.log('🔄 Fetching profile for session user:', sessionUser.id);
         const { profile, role } = await AuthService.getUserProfile(sessionUser.id);
         
         // Construct the complete AuthUser object
         const authUser: AuthUser = {
           id: sessionUser.id,
-          email: sessionUser.email!,
+          email: sessionUser.email ?? '', // Use empty string as fallback if email is null
           email_confirmed_at: sessionUser.email_confirmed_at,
           profile,
           role
