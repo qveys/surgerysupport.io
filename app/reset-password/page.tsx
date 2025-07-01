@@ -1,10 +1,11 @@
 'use client';
 
-// import PasswordResetModal from '@/components/auth/PasswordResetModal';
-import { Loader2 } from 'lucide-react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
-export default function ResetPasswordPage() {
+// Separate component for handling search params
+function PasswordResetContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || undefined;
   const type = searchParams.get('type') || undefined;
@@ -47,5 +48,25 @@ export default function ResetPasswordPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Loading component
+function PasswordResetLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary/10 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<PasswordResetLoading />}>
+      <PasswordResetContent />
+    </Suspense>
   );
 }

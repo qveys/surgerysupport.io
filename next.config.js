@@ -5,6 +5,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  experimental: {
+    // Fix for searchParams issue in Next.js 15
+    missingSuspenseWithCSRBailout: false,
+  },
   webpack: (config, { isServer }) => {
     // Ignore optional native dependencies for ws library
     config.externals = config.externals || [];
