@@ -5,9 +5,10 @@ import AuthPage from '@/components/auth/AuthPage';
 import Dashboard from '@/components/dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import DatabaseTestPanel from '@/components/DatabaseTestPanel';
+import DeploymentStatusChecker from '@/components/DeploymentStatusChecker';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Database, X } from 'lucide-react';
+import { Database, X, Wrench } from 'lucide-react';
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
@@ -38,7 +39,10 @@ export default function Home() {
               Close Test Panel
             </Button>
           </div>
-          <DatabaseTestPanel />
+          <div className="space-y-6">
+            <DeploymentStatusChecker />
+            <DatabaseTestPanel />
+          </div>
         </div>
       </div>
     );
@@ -61,8 +65,8 @@ export default function Home() {
               onClick={() => setShowDatabaseTest(true)}
               className="text-xs"
             >
-              <Database className="w-4 h-4 mr-2" />
-              Run Database Test
+              <Wrench className="w-4 h-4 mr-2" />
+              Deployment Troubleshooter
             </Button>
           </div>
         </div>
@@ -84,8 +88,8 @@ export default function Home() {
             onClick={() => setShowDatabaseTest(true)}
             className="shadow-lg bg-white hover:bg-gray-50"
           >
-            <Database className="w-4 h-4 mr-2" />
-            Database Test
+            <Wrench className="w-4 h-4 mr-2" />
+            Deployment Troubleshooter
           </Button>
         </div>
       </div>
@@ -116,12 +120,21 @@ export default function Home() {
                 <strong>Tip:</strong> Also check your spam folder if you don't see the email.
               </p>
             </div>
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              I have confirmed my email
-            </button>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => window.location.reload()}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                I have confirmed my email
+              </button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDatabaseTest(true)}
+                className="px-3"
+              >
+                <Wrench className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -132,8 +145,6 @@ export default function Home() {
   if (user && user.email_confirmed_at && !user.profile) {
     console.log('User exists with confirmed email but no profile yet, attempting to create...');
     
-    // The profile creation is now handled automatically in getUserProfile
-    // This loading state should be brief as the profile gets created automatically
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -155,7 +166,7 @@ export default function Home() {
                 onClick={() => setShowDatabaseTest(true)}
                 className="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors"
               >
-                Run Database Test
+                Deployment Troubleshooter
               </button>
             </div>
           </div>
@@ -167,5 +178,21 @@ export default function Home() {
   // Show dashboard if authenticated with profile
   console.log('Showing dashboard for user:', user);
   console.log('User role:', user.role?.name);
-  return <Dashboard user={user} />;
+  return (
+    <div className="relative">
+      <Dashboard user={user} />
+      
+      {/* Database Test Button - Fixed position */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <Button 
+          variant="outline" 
+          onClick={() => setShowDatabaseTest(true)}
+          className="shadow-lg bg-white hover:bg-gray-50"
+        >
+          <Wrench className="w-4 h-4 mr-2" />
+          Deployment Troubleshooter
+        </Button>
+      </div>
+    </div>
+  );
 }
