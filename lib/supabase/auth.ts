@@ -283,16 +283,22 @@ export class AuthService {
             );
 
             if (createdProfile) {
-              // Get the role for the newly created profile
-              const { data: roleData } = await supabase
-                .from('roles')
-                .select('*')
-                .eq('id', createdProfile.role_id)
-                .single();
+              // Get the role for the newly created profile, but only if role_id is not null
+              let roleData = null;
+              
+              if (createdProfile.role_id) {
+                const { data: fetchedRole } = await supabase
+                  .from('roles')
+                  .select('*')
+                  .eq('id', createdProfile.role_id)
+                  .single();
+                  
+                roleData = fetchedRole;
+              }
 
               return {
                 profile: createdProfile,
-                role: roleData || null
+                role: roleData
               };
             }
           }
