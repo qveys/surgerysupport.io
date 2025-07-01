@@ -14,7 +14,10 @@ import {
   RefreshCw,
   Info,
   Eye,
-  EyeOff
+  EyeOff,
+  Bug,
+  Shield,
+  Key
 } from 'lucide-react';
 
 export default function DatabaseTestPanel() {
@@ -22,6 +25,7 @@ export default function DatabaseTestPanel() {
   const [isRunning, setIsRunning] = useState(false);
   const [showDetails, setShowDetails] = useState<{ [key: string]: boolean }>({});
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
+  const [rlsTestResults, setRlsTestResults] = useState<any>(null);
 
   const runTests = async () => {
     setIsRunning(true);
@@ -31,6 +35,10 @@ export default function DatabaseTestPanel() {
       
       const info = await DatabaseTestService.getDatabaseInfo();
       setDatabaseInfo(info);
+
+      // Run specific RLS tests for roles table
+      const rolesSelectTest = await DatabaseTestService.testSpecificRLSPolicy('roles', 'SELECT');
+      setRlsTestResults({ rolesSelect: rolesSelectTest });
     } catch (error) {
       console.error('Error running tests:', error);
     } finally {
@@ -81,10 +89,10 @@ export default function DatabaseTestPanel() {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Database className="w-6 h-6 text-primary" />
-            <span>Database Configuration Test</span>
+            <span>Enhanced Database Diagnostics</span>
           </CardTitle>
           <CardDescription>
-            Comprehensive test to diagnose database configuration issues
+            Comprehensive test to diagnose database configuration and RLS policy issues
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -97,12 +105,12 @@ export default function DatabaseTestPanel() {
               {isRunning ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Running Tests...
+                  Running Enhanced Tests...
                 </>
               ) : (
                 <>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Run Database Tests
+                  <Bug className="w-4 h-4 mr-2" />
+                  Run Enhanced Diagnostics
                 </>
               )}
             </Button>
@@ -129,7 +137,10 @@ export default function DatabaseTestPanel() {
           {/* Database Info */}
           {databaseInfo && (
             <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-2">Database Information</h3>
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                <Key className="w-4 h-4 mr-2" />
+                Database Configuration
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Supabase URL:</span>
@@ -138,11 +149,21 @@ export default function DatabaseTestPanel() {
                   </div>
                 </div>
                 <div>
-                  <span className="font-medium">Keys Configured:</span>
+                  <span className="font-medium">API Keys:</span>
                   <div className="text-gray-600">
                     Anon: {databaseInfo.hasAnonKey ? '✅' : '❌'} | 
                     Service: {databaseInfo.hasServiceKey ? '✅' : '❌'}
                   </div>
+                </div>
+                {databaseInfo.anonKeyPrefix && (
+                  <div>
+                    <span className="font-medium">Anon Key Preview:</span>
+                    <div className="text-gray-600 font-mono text-xs">{databaseInfo.anonKeyPrefix}</div>
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium">Environment:</span>
+                  <div className="text-gray-600">{databaseInfo.environment}</div>
                 </div>
                 {databaseInfo.currentUser && (
                   <>
@@ -156,8 +177,60 @@ export default function DatabaseTestPanel() {
                         {databaseInfo.currentUser.emailConfirmed ? '✅ Yes' : '❌ No'}
                       </div>
                     </div>
+                    <div>
+                      <span className="font-medium">User ID:</span>
+                      <div className="text-gray-600 font-mono text-xs">{databaseInfo.currentUser.id}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium">User Created:</span>
+                      <div className="text-gray-600 text-xs">{new Date(databaseInfo.currentUser.createdAt).toLocaleString()}</div>
+                    </div>
                   </>
                 )}
+                {databaseInfo.session && (
+                  <>
+                    <div>
+                      <span className="font-medium">Session Status:</span>
+                      <div className="text-gray-600">
+                        Access Token: {databaseInfo.session.accessToken} | 
+                        Refresh Token: {databaseInfo.session.refreshToken}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium">Token Expires:</span>
+                      <div className="text-gray-600 text-xs">
+                        {databaseInfo.session.expiresAt ? new Date(databaseInfo.session.expiresAt * 1000).toLocaleString() : 'Unknown'}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* RLS Test Results */}
+          {rlsTestResults && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-semibold text-blue-900 mb-3 flex items-center">
+                <Shield className="w-4 h-4 mr-2" />
+                RLS Policy Test Results
+              </h3>
+              <div className="space-y-2 text-sm">
+                {Object.entries(rlsTestResults).map(([testName, result]: [string, any]) => (
+                  <div key={testName} className="flex items-center justify-between p-2 bg-white rounded border">
+                    <div>
+                      <span className="font-medium">{testName}:</span>
+                      <span className={`ml-2 ${result.success ? 'text-green-600' : 'text-red-600'}`}>
+                        {result.success ? '✅ Allowed' : '❌ Denied'}
+                      </span>
+                    </div>
+                    {!result.success && (
+                      <div className="text-xs text-red-600">
+                        {result.errorCode}: {result.error}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -165,7 +238,7 @@ export default function DatabaseTestPanel() {
           {/* Test Results */}
           {testResults.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-gray-900">Test Results</h3>
+              <h3 className="font-semibold text-gray-900">Detailed Test Results</h3>
               {testResults.map((result, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
@@ -198,8 +271,8 @@ export default function DatabaseTestPanel() {
                   
                   {showDetails[result.test] && result.details && (
                     <div className="mt-3 p-3 bg-gray-50 rounded border">
-                      <h5 className="font-medium text-gray-900 mb-2">Details:</h5>
-                      <pre className="text-xs text-gray-700 overflow-auto">
+                      <h5 className="font-medium text-gray-900 mb-2">Technical Details:</h5>
+                      <pre className="text-xs text-gray-700 overflow-auto max-h-96">
                         {JSON.stringify(result.details, null, 2)}
                       </pre>
                     </div>
@@ -209,7 +282,7 @@ export default function DatabaseTestPanel() {
             </div>
           )}
 
-          {/* Recommendations */}
+          {/* Critical Issues */}
           {testResults.length > 0 && failedTests > 0 && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <h3 className="font-semibold text-red-900 mb-2">🚨 Critical Issues Found</h3>
@@ -219,27 +292,50 @@ export default function DatabaseTestPanel() {
                   .map((result, index) => (
                     <div key={index}>
                       <strong>{result.test}:</strong> {result.message}
+                      {result.details?.hint && (
+                        <div className="text-xs text-red-700 ml-4 mt-1">
+                          💡 {result.details.hint}
+                        </div>
+                      )}
                     </div>
                   ))}
-                <div className="mt-3 p-2 bg-red-100 rounded">
-                  <strong>Recommended Actions:</strong>
+                <div className="mt-3 p-3 bg-red-100 rounded">
+                  <strong>🔧 Recommended Actions:</strong>
                   <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>Check if all database migrations have been run in order</li>
-                    <li>Verify Supabase project configuration and RLS policies</li>
-                    <li>Ensure user profiles are properly created for auth users</li>
-                    <li>Check if required roles exist in the database</li>
+                    <li>Check if your user has the correct role assigned in the database</li>
+                    <li>Verify RLS policies allow authenticated users to read the roles table</li>
+                    <li>Ensure the user profile was created properly with a valid role_id</li>
+                    <li>Check if the roles table has the required data</li>
+                    <li>Verify Supabase project configuration and API keys</li>
                   </ul>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Success Message */}
           {testResults.length > 0 && failedTests === 0 && warningTests === 0 && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <h3 className="font-semibold text-green-900 mb-2">✅ All Tests Passed</h3>
               <p className="text-sm text-green-800">
                 Your database configuration appears to be working correctly!
               </p>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {testResults.length > 0 && warningTests > 0 && failedTests === 0 && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Warnings Found</h3>
+              <div className="text-sm text-yellow-800 space-y-1">
+                {testResults
+                  .filter(r => r.status === 'warning')
+                  .map((result, index) => (
+                    <div key={index}>
+                      <strong>{result.test}:</strong> {result.message}
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
         </CardContent>
