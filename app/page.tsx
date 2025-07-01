@@ -51,16 +51,16 @@ export default function Home() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Vérifiez votre email
+            Check your email
           </h2>
           <p className="text-gray-600 mb-6">
-            Nous avons envoyé un lien de confirmation à <strong>{user.email}</strong>. 
-            Cliquez sur le lien dans l'email pour activer votre compte.
+            We have sent a confirmation link to <strong>{user.email}</strong>. 
+            Click on the link in the email to activate your account.
           </p>
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Conseil :</strong> Vérifiez aussi votre dossier spam si vous ne voyez pas l'email.
+                <strong>Advice :</strong> Also check your spam folder if you don't see the email.
               </p>
             </div>
             <button 
