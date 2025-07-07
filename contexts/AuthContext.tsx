@@ -234,12 +234,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await AuthService.signOut();
       setUser(null);
       toast.success('Signed out successfully');
+      console.log('🧹 Finishing sign out from AuthContext...');
     } catch (error) {
       console.error('❌ SignOut error in AuthContext:', error);
       // Even if signOut fails, clear local state
       setUser(null);
       toast.error('Error signing out');
     } finally {
+      console.log('🧹 Finalisation de signOut');
       setLoading(false);
     }
   };
